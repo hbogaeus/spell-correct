@@ -10,20 +10,21 @@ fn main() {
     let frequency = Frequency::new(words);
 
     println!("{}", frequency.num_words);
-    println!("{}", frequency.probability("unmentioned"));
+    println!("{}", frequency.probability("the"));
 }
 
-struct Frequency<'a> {
-    map: HashMap<&'a str, i32>,
+struct Frequency {
+    map: HashMap<String, i32>,
     num_words: i32,
 }
 
-impl<'a> Frequency<'a> {
-    pub fn new(words: Vec<&'a str>) -> Self {
+impl Frequency {
+    pub fn new(words: Vec<&str>) -> Self {
         let mut frequency = HashMap::new();
 
         for &word in &words {
-            let counter = frequency.entry(word).or_insert(0);
+            let lower = word.to_lowercase();
+            let counter = frequency.entry(lower).or_insert(0);
             *counter += 1;
         }
 
