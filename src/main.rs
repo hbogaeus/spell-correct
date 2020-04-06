@@ -1,6 +1,9 @@
 use regex::Regex;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs;
+
+const ALPHABET: &str = "abcdefghijklmnopqrstuvwxyz";
 
 fn main() {
     let contents = fs::read_to_string("big.txt").expect("File big.txt not found");
@@ -11,6 +14,68 @@ fn main() {
 
     println!("{}", frequency.num_words);
     println!("{}", frequency.probability("the"));
+}
+
+fn edit1(word: &str) -> HashSet<String> {
+    let mut set = HashSet::new();
+
+    deletes(word, &mut set);
+    transposes(word, &mut set);
+    replaces(word, &mut set);
+    inserts(word, &mut set);
+
+    set
+}
+
+fn deletes(word: &str, set: &mut HashSet<String>) {
+    for pos in 0..word.len() {
+        let mut new = String::new();
+        new.push_str(&word[..pos]);
+        new.push_str(&word[pos + 1..]);
+        set.insert(new);
+    }
+}
+
+fn inserts(word: &str, set: &mut HashSet<String>) {
+    for pos in 0..word.len() + 1 {
+        for letter in ALPHABET.chars() {
+            let mut new = String::new();
+            new.push_str(&word[..pos]);
+            new.push(letter);
+            new.push_str(&word[pos..]);
+            set.insert(new);
+        }
+    }
+}
+
+fn replaces(word: &str, set: &mut HashSet<String>) {
+    for pos in 0..word.len() {
+        for letter in ALPHABET.chars() {
+            let mut new = String::new();
+            new.push_str(&word[..pos]);
+            new.push(letter);
+            new.push_str(&word[pos + 1..]);
+            set.insert(new);
+        }
+    }
+}
+
+fn transposes(word: &str, set: &mut HashSet<String>) {
+    for pos in 0..word.len() - 1 {
+        let mut new = String::new();
+
+        new.push_str(&word[..pos]);
+
+        let current = &word[pos..pos + 1];
+        let next = &word[pos + 1..pos + 2];
+
+        new.push_str(next);
+        new.push_str(current);
+
+        new.push_str(&word[pos + 2..]);
+
+        set.insert(new);
+    }
 }
 
 struct Frequency {
@@ -50,7 +115,7 @@ fn split_into_words(contents: &str) -> Vec<&str> {
 
 mod tests {
     #[allow(unused_imports)]
-    use super::Frequency;
+    use super::*;
 
     #[test]
     fn frequency() {
@@ -70,5 +135,57 @@ mod tests {
         assert_eq!(frequency.probability("the"), 0.75);
         assert_eq!(frequency.probability("ploy"), 0.25);
         assert_eq!(frequency.probability("dada"), 0.0);
+    }
+
+    #[test]
+    fn deletes() {
+        let mut set = HashSet::new();
+        let word = "abc";
+
+        super::deletes(word, &mut set);
+
+        assert_eq!(set.len(), 3);
+        assert!(set.contains("bc"));
+        assert!(set.contains("ac"));
+        assert!(set.contains("ab"));
+    }
+
+    #[test]
+    fn inserts() {
+        let mut set = HashSet::new();
+        let word = "abc";
+
+        super::inserts(word, &mut set);
+
+        assert_eq!(set.len(), ((word.len() + 1) * 26) - word.len());
+    }
+
+    #[test]
+    fn replaces() {
+        let mut set = HashSet::new();
+        let word = "abc";
+
+        super::replaces(word, &mut set);
+
+        assert_eq!(set.len(), ((word.len()) * 26) - (word.len() - 1));
+    }
+
+    #[test]
+    fn transposes() {
+        let mut set = HashSet::new();
+        let word = "abc";
+
+        super::transposes(word, &mut set);
+
+        assert_eq!(set.len(), word.len() - 1);
+    }
+
+    #[test]
+    fn edit1() {
+        let word = "somthing";
+
+        let set = super::edit1(word);
+
+        assert_eq!(set.len(), 442);
     }
 }
