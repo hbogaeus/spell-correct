@@ -8,15 +8,49 @@ const ALPHABET: &str = "abcdefghijklmnopqrstuvwxyz";
 fn main() {
     let contents = fs::read_to_string("big.txt").expect("File big.txt not found");
 
-    let words = split_into_words(contents.as_str());
+    let mut words = HashSet::new();
 
-    let frequency = Frequency::new(words);
+    for word in split_into_words(contents.as_str()) {
+        words.insert(word);
+    }
 
-    println!("{}", frequency.num_words);
-    println!("{}", frequency.probability("the"));
+    let frequency = Frequency::new(&words);
+
+    let variants = edits2("somthing");
+
+    let known = known(&variants, &words);
+
+    for word in known {
+        println!("{} {}", word, frequency.probability(word));
+    }
 }
 
-fn edit1(word: &str) -> HashSet<String> {
+fn known<'a>(variants: &'a HashSet<String>, words: &HashSet<&str>) -> Vec<&'a String> {
+    let mut result = Vec::new();
+
+    for variant in variants {
+        if words.contains(&variant.as_str()) {
+            result.push(variant)
+        }
+    }
+
+    result
+}
+
+fn edits2(word: &str) -> HashSet<String> {
+    let initial_set = edits1(word);
+    let mut final_set = HashSet::new();
+
+    for variant in initial_set.iter() {
+        for result in edits1(variant).iter() {
+            final_set.insert(result.clone());
+        }
+    }
+
+    final_set
+}
+
+fn edits1(word: &str) -> HashSet<String> {
     let mut set = HashSet::new();
 
     deletes(word, &mut set);
@@ -84,10 +118,10 @@ struct Frequency {
 }
 
 impl Frequency {
-    pub fn new(words: Vec<&str>) -> Self {
+    pub fn new(words: &HashSet<&str>) -> Self {
         let mut frequency = HashMap::new();
 
-        for &word in &words {
+        for &word in words {
             let lower = word.to_lowercase();
             let counter = frequency.entry(lower).or_insert(0);
             *counter += 1;
@@ -184,7 +218,7 @@ mod tests {
     fn edit1() {
         let word = "somthing";
 
-        let set = super::edit1(word);
+        let set = super::edits1(word);
 
         assert_eq!(set.len(), 442);
     }
