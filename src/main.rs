@@ -1,6 +1,7 @@
 use regex::Regex;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::env;
 use std::fs;
 
 const ALPHABET: &str = "abcdefghijklmnopqrstuvwxyz";
@@ -8,36 +9,67 @@ const ALPHABET: &str = "abcdefghijklmnopqrstuvwxyz";
 fn main() {
     let contents = fs::read_to_string("big.txt").expect("File big.txt not found");
 
-    let mut words = HashSet::new();
+    let default = String::from("somthing");
 
-    for word in split_into_words(contents.as_str()) {
-        words.insert(word);
-    }
+    let word = env::args().skip(1).next().unwrap_or(default);
 
-    let frequency = Frequency::new(&words);
+    let known_words = collect_unique_words(contents.as_str());
 
-    let variants = edits2("somthing");
+    let frequency = Frequency::new(&known_words);
 
-    let known = known(&variants, &words);
+    let candidates = candiates(&word, &known_words);
 
-    for word in known {
-        println!("{} {}", word, frequency.probability(word));
+    let most_likely = find_most_likely(&candidates, &frequency);
+
+    println!("{}", most_likely)
+}
+
+fn find_most_likely<'a>(candidates: &'a Vec<&str>, freq: &Frequency) -> &'a str {
+    candidates
+        .iter()
+        .fold((0.0, ""), |(value, string), item| {
+            let frequency = freq.probability(item);
+            if frequency > value {
+                (frequency, item)
+            } else {
+                (value, string)
+            }
+        })
+        .1
+}
+
+fn candiates<'a>(word: &'a str, known_words: &'a HashSet<&str>) -> Vec<&'a str> {
+    if let Some(canidates) = known(&vec![word.to_string()], known_words) {
+        println!("Match!");
+        canidates
+    } else if let Some(candidates) = known(&edits1(&word), &known_words) {
+        println!("Edit 1!");
+        candidates
+    } else if let Some(candidates) = known(&edits2(&word), &known_words) {
+        println!("Edit 2!");
+        candidates
+    } else {
+        println!("No match...");
+        vec![&word]
     }
 }
 
-fn known<'a>(variants: &'a HashSet<String>, words: &HashSet<&str>) -> Vec<&'a String> {
-    let mut result = Vec::new();
+fn known<'a>(variants: &Vec<String>, words: &'a HashSet<&str>) -> Option<Vec<&'a str>> {
+    let known_words: Vec<&str> = variants
+        .iter()
+        .map(|word| word.as_str())
+        .filter_map(|variant| words.get(variant))
+        .map(|word| *word)
+        .collect();
 
-    for variant in variants {
-        if words.contains(&variant.as_str()) {
-            result.push(variant)
-        }
+    if known_words.is_empty() {
+        None
+    } else {
+        Some(known_words)
     }
-
-    result
 }
 
-fn edits2(word: &str) -> HashSet<String> {
+fn edits2(word: &str) -> Vec<String> {
     let initial_set = edits1(word);
     let mut final_set = HashSet::new();
 
@@ -47,10 +79,10 @@ fn edits2(word: &str) -> HashSet<String> {
         }
     }
 
-    final_set
+    final_set.into_iter().collect()
 }
 
-fn edits1(word: &str) -> HashSet<String> {
+fn edits1(word: &str) -> Vec<String> {
     let mut set = HashSet::new();
 
     deletes(word, &mut set);
@@ -58,7 +90,7 @@ fn edits1(word: &str) -> HashSet<String> {
     replaces(word, &mut set);
     inserts(word, &mut set);
 
-    set
+    set.into_iter().collect()
 }
 
 fn deletes(word: &str, set: &mut HashSet<String>) {
@@ -142,7 +174,7 @@ impl Frequency {
     }
 }
 
-fn split_into_words(contents: &str) -> Vec<&str> {
+fn collect_unique_words(contents: &str) -> HashSet<&str> {
     let re = Regex::new(r"\w+").unwrap();
     re.find_iter(contents).map(|word| word.as_str()).collect()
 }
