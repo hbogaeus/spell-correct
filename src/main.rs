@@ -13,9 +13,11 @@ fn main() {
 
     let word = env::args().skip(1).next().unwrap_or(default);
 
-    let known_words = collect_unique_words(contents.as_str());
+    let words = split_words(contents.as_str());
 
-    let frequency = Frequency::new(&known_words);
+    let frequency = Frequency::new(&words);
+
+    let known_words = words.into_iter().collect();
 
     let candidates = candiates(&word, &known_words);
 
@@ -150,7 +152,7 @@ struct Frequency {
 }
 
 impl Frequency {
-    pub fn new(words: &HashSet<&str>) -> Self {
+    pub fn new(words: &Vec<&str>) -> Self {
         let mut frequency = HashMap::new();
 
         for &word in words {
@@ -174,7 +176,7 @@ impl Frequency {
     }
 }
 
-fn collect_unique_words(contents: &str) -> HashSet<&str> {
+fn split_words(contents: &str) -> Vec<&str> {
     let re = Regex::new(r"\w+").unwrap();
     re.find_iter(contents).map(|word| word.as_str()).collect()
 }
@@ -186,7 +188,7 @@ mod tests {
     #[test]
     fn frequency() {
         let words = vec!["the", "the", "the", "ploy"];
-        let frequency = Frequency::new(words);
+        let frequency = Frequency::new(&words);
 
         assert_eq!(frequency.map.get("the"), Some(&3));
         assert_eq!(frequency.map.get("ploy"), Some(&1));
@@ -196,7 +198,7 @@ mod tests {
     #[test]
     fn probability() {
         let words = vec!["the", "the", "the", "ploy"];
-        let frequency = Frequency::new(words);
+        let frequency = Frequency::new(&words);
 
         assert_eq!(frequency.probability("the"), 0.75);
         assert_eq!(frequency.probability("ploy"), 0.25);
